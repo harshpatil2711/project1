@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Filter App</title>
+    <style>
+        /* General Styles */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* Main Container */
+        #main-container {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        /* Video Container */
+        #video-container {
+            width: 400px;
+            /* Square size for desktop */
+            height: 400px;
+            border: 5px solid #444;
+            /* Light gray border */
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Reverse Camera Button */
+        #reverse-camera {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            z-index: 3;
+        }
+
+        /* Logo */
+        #logo {
+            width: 100px;
+            height: 100px;
+            margin-right: 20px;
+            /* Space between logo and video box */
+        }
+
+        /* Toggle Button Container */
+        /* General toggle container styling */
+        .toggle-container {
+            position: relative;
+            display: inline-block;
+            width: 120px;
+            /* Width to accommodate text */
+            height: 34px;
+        }
+
+        /* Hide the default checkbox */
+        .toggle-button {
+            display: none;
+        }
+
+        /* Outer background of the toggle button */
+        #toggle-button-1+.toggle-label {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: lightpink;
+            /* Outer background: light pink */
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        /* Inner sliding part with text */
+        #toggle-button-1+.toggle-label:before {
+            position: absolute;
+            content: "Male";
+            /* Default text */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 26px;
+            width: 50px;
+            /* Width of the sliding part */
+            left: 4px;
+            bottom: 4px;
+            background-color: darkred;
+            /* Inner background: dark red-pink */
+            transition: .4s;
+            border-radius: 34px;
+            font-size: 14px;
+            color: white;
+            /* Text color */
+        }
+
+        /* When the toggle is checked, move the slider and change text */
+        #toggle-button-1:checked+.toggle-label:before {
+            content: "Female";
+            /* Text when toggled */
+            transform: translateX(60px);
+            /* Move the sliding part to the right */
+        }
+
+        /* Filter Carousel */
+        #filter-carousel {
+            position: fixed;
+            bottom: 20px;
+            left: 5%;
+            /* Margin from left */
+            right: 5%;
+            /* Margin from right */
+            width: 90%;
+            /* Fills space between margins */
+            display: flex;
+            overflow-x: auto;
+            padding: 10px 0;
+            /* Vertical padding only */
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 20px;
+            z-index: 2;
+            align-items: center;
+            justify-content: flex-start;
+            /* Align filters to the left */
+            scrollbar-width: thin;
+            /* Firefox */
+            scrollbar-color: #888 rgba(0, 0, 0, 0.1);
+        }
+
+        /* Optional: Custom scrollbar (Chrome/Safari) */
+        #filter-carousel::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        #filter-carousel::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        /* Prevent filter items from shrinking */
+        .filter-item {
+            flex-shrink: 0;
+            margin: 0 10px;
+            /* Spacing between filters */
+        }
+
+        .filter-item {
+            width: 80px;
+            height: 80px;
+            margin: 0 10px;
+            cursor: pointer;
+            border-radius: 10px;
+            border: 2px solid #fff;
+            /* White border */
+            background-color: rgba(255, 255, 255, 0.1);
+            /* Semi-transparent white */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .filter-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            /* Ensure transparent background is visible */
+        }
+
+        .filter-item:hover {
+            border-color: #ffdd57;
+            /* Yellow border on hover */
+            transform: scale(1.1);
+        }
+
+        /* Capture Button */
+        #capture-button {
+            position: fixed;
+            bottom: 140px;
+            /* Position above carousel */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70px;
+            height: 70px;
+            background: url("{{ url_for('static', filename='images/capture.png') }}") no-repeat center center;
+            background-size: contain;
+            border: none;
+            cursor: pointer;
+            z-index: 4;
+            /* Above carousel */
+            transition: transform 0.2s ease;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 3px solid white;
+        }
+
+        #capture-button:hover {
+            transform: scale(1.1) translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Capture button states */
+        #capture-button:disabled {
+            cursor: not-allowed;
+        }
+
+        .capture-loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        /* Camera flash effect */
+        .camera-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            opacity: 0;
+            animation: flash 0.5s ease-out;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        @keyframes flash {
+            0% {
+                opacity: 0;
+            }
+
+            20% {
+                opacity: 0.9;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        /* Photo preview */
+        .photo-preview {
+            position: fixed;
+            bottom: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 10px;
+            z-index: 1001;
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        .photo-preview img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+        .preview-message {
+            color: white;
+            text-align: center;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        @keyframes fadeInOut {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+
+            15% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+
+            85% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            #main-container {
+                flex-direction: column;
+                align-items: center;
+                margin-top: 10px;
+            }
+
+            #video-container {
+                width: 90%;
+                height: 90vw;
+                /* Square aspect ratio */
+                margin: 10px auto 0;
+            }
+
+            #logo {
+                width: 80px;
+                height: 80px;
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+
+            #toggle-container {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+
+            #filter-carousel {
+                bottom: 10px;
+                width: 95%;
+            }
+
+            .filter-item {
+                width: 60px;
+                height: 60px;
+            }
+
+            #capture-button {
+                bottom: 100px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Main Container -->
+    <div id="main-container">
+        <!-- Logo -->
+        <img id="logo" src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo">
+
+        <!-- Video Feed -->
+        <div id="video-container">
+            <img id="video" src="{{ url_for('video_feed') }}">
+            <!-- Reverse Camera Button -->
+            <img id="reverse-camera" src="{{ url_for('static', filename='images/reverse-camera.png') }}"
+                alt="Reverse Camera">
+        </div>
+
+        <!-- Toggle Button with ID -->
+        <div class="toggle-container">
+            <input type="checkbox" id="toggle-button-1" class="toggle-button">
+            <label for="toggle-button-1" class="toggle-label"></label>
+        </div>
+    </div>
+
+    <!-- Filter Carousel -->
+
+    <div id="filter-carousel">
+        {% for filter in filters %}
+        <img src="{{ url_for('static', filename='filters/' + current_gender + '/' + filter) }}" class="filter-item"
+            data-filter="{{ filter }}" alt="{{ filter }}" onclick="applyFilter('{{ filter }}')">
+        {% endfor %}
+    </div>
+
+    <!-- Capture Button -->
+    <button id="capture-button" onclick="capturePhoto()"></button>
+
+    <!-- JavaScript for Applying Filters and Capturing Photo -->
+    <script>
+        // Function to load filters based on gender
+        function loadFilters(gender) {
+            const filterCarousel = document.getElementById('filter-carousel');
+            filterCarousel.innerHTML = ''; // Clear existing filters
+
+            // Fetch filters from the server
+            fetch(`/get_filters/${gender}`)
+                .then(response => response.json())
+                .then(filters => {
+                    filters.forEach(filter => {
+                        const filterItem = document.createElement('img');
+                        filterItem.src = `static/filters/${gender}/${filter}`;
+                        filterItem.classList.add('filter-item');
+                        filterItem.setAttribute('data-filter', filter);
+                        filterItem.setAttribute('alt', filter.replace('.png', ''));
+                        filterCarousel.appendChild(filterItem);
+                    });
+
+                    // Reattach event listeners to new filter items
+                    document.querySelectorAll('.filter-item').forEach(item => {
+                        item.addEventListener('click', function () {
+                            const filterName = this.getAttribute('data-filter');
+                            if (filterName) {
+                                applyFilter(filterName);
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading filters:', error);
+                });
+        }
+        // Reverse Camera Button
+        const reverseCameraButton = document.getElementById('reverse-camera');
+        reverseCameraButton.addEventListener('click', function () {
+            // Add logic to switch between front and rear cameras
+            alert("Switching camera...");
+        });
+
+        document.getElementById('toggle-button-1').addEventListener('change', function () {
+            if (this.checked) {
+                console.log("Toggle is ON - Female");
+                loadFilters('female');
+            } else {
+                console.log("Toggle is OFF - Male");
+                loadFilters('male');
+            }
+        });
+
+
+        // Initial load of filters (default to Male)
+        loadFilters('male');
+
+        // Function to apply filter
+        function applyFilter(filterName) {
+            const gender = document.getElementById('toggle-button-1').checked ? 'female' : 'male';
+            fetch(`/set_filter/${gender}/${filterName}`)
+                .then(response => {
+                    if (!response.ok) throw new Error("Filter not found");
+                    // Force a complete refresh of the video stream
+                    document.getElementById('video').src = "/video_feed?t=" + Date.now();
+                    // Add visual feedback
+                    document.querySelectorAll('.filter-item').forEach(item => {
+                        item.style.border = item.getAttribute('data-filter') === filterName
+                            ? "3px solid #00ff00"
+                            : "2px solid #fff";
+                    });
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert(`Error applying filter. Please try another.`);
+                });
+        }
+
+        function capturePhoto() {
+            const btn = document.getElementById('capture-button');
+
+            // Visual feedback
+            btn.disabled = true;
+            btn.style.transform = 'scale(0.9)';
+
+            fetch('/capture_photo')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Show preview with filename
+                        const preview = document.createElement('div');
+                        preview.className = 'photo-preview';
+                        preview.innerHTML = `
+                    <img src="${data.image_url}" alt="Captured photo">
+                    <div class="preview-text">Saved as ${data.filename}</div>
+                `;
+                        document.body.appendChild(preview);
+
+                        // Remove preview after 2 seconds
+                        setTimeout(() => {
+                            preview.style.opacity = '0';
+                            setTimeout(() => preview.remove(), 300);
+                        }, 2000);
+                    } else {
+                        throw new Error(data.message || 'Capture failed');
+                    }
+                })
+                .catch(error => {
+                    console.error("Capture error:", error);
+                    alert(error.message);
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.style.transform = 'scale(1)';
+                });
+        }
+
+
+
+    </script>
+</body>
+
+</html>
